@@ -1,0 +1,19 @@
+# 编译过程和编辑器文件
+bin/
+obj/
+.vs/
+*.user
+*.suo
+
+# 生成的软件包
+release/
+release-fluid/
+release-lean/
+publish/
+*.zip
+
+# 本地数据和敏感配置
+tasks.json*
+settings.json
+.env
+.env.*

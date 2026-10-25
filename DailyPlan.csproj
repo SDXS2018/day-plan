@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>DailyPlan</AssemblyName>
+    <RootNamespace>DailyPlan</RootNamespace>
+    <ApplicationIcon>Assets\DailyPlan.ico</ApplicationIcon>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <TieredCompilation>false</TieredCompilation>
+  </PropertyGroup>
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+    <Using Include="System.IO" />
+    <EmbeddedResource Include="Assets\DailyPlan.ico" LogicalName="DailyPlan.TrayIcon" />
+    <Content Include="Assets\Fonts\PlanRounded.ttf" CopyToOutputDirectory="PreserveNewest" />
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+    <None Update="Assets\Fonts\OFL-License.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
