@@ -2,6 +2,13 @@
 
 C# WPF + 本地 JSON。无需账号、云端服务或管理员权限。
 
+## 下载给普通用户使用
+
+前往 [Releases 下载页面](https://github.com/SDXS2018/day-plan/releases/latest)，下载 `DailyPlan-Windows-x64-版本号.zip`。
+完整解压，双击其中 `DailyPlan/DailyPlan.exe`。这是 Windows x64 解压即用版，自带 .NET 运行时，没有安装向导；不要只复制 EXE。ZIP 中包含运行库、独立字体、字体许可证和使用说明。GitHub 自动附带的 Source code 是源码，不是运行包。
+
+首次使用会建立自己的空清单。个人任务保存在 `%LOCALAPPDATA%\DailyPlan`；更新程序时在设置中退出旧版、换用新版文件夹即可，数据保留。
+
 ## 已安装版本
 
 - 程序：`%LOCALAPPDATA%\Programs\DailyPlan\DailyPlan.exe`
@@ -46,6 +53,27 @@ C# WPF + 本地 JSON。无需账号、云端服务或管理员权限。
 ## 构建
 
 双击 `Build-Windows.bat`，生成 `release-fluid` 文件夹。本工作区可使用 `../tools/dotnet` 的 .NET 10 SDK，否则需要自行安装 .NET 10 SDK。
+
+## 打包与自动发布
+
+在 Windows 的 PowerShell 7 中，进入本项目目录后运行：
+
+```powershell
+.\Package-Windows.ps1 -Version '1.0.0'
+```
+
+脚本使用干净的临时目录构建，检查运行库、字体、许可证和使用说明，生成 `dist/DailyPlan-Windows-x64-v1.0.0.zip` 及 SHA-256 校验文件。不会把本机任务、设置、开发工具或测试备份打进去。ZIP 条目统一使用 `/` 路径分隔符。同名文件已经存在时请使用新的版本号或输出目录。
+
+推送 `main` / `master` 或在 Actions 手动运行会生成开发版运行包，保存在对应构建的 Artifacts 中。推送 `v1.0.0` 这样的版本标签会在构建成功后自动创建 GitHub Release，附上完整 ZIP 和校验文件，供普通用户直接下载。发布说明来自 `RELEASE-NOTES.md`；发布新版本时应一并更新。
+
+以后发布新版本的示例（先提交并推送代码，确认该版本号尚未使用）：
+
+```powershell
+git tag -a v1.0.1 -m "DailyPlan v1.0.1"
+git push origin v1.0.1
+```
+
+本地核对下载包：`Get-FileHash .\DailyPlan-Windows-x64-v1.0.0.zip -Algorithm SHA256`，结果应与 `.sha256` 文件一致。
 
 源码修复了初次 Windows 编译时的 WPF/WinForms 类型冲突，以及只读进度属性的双向绑定错误。
 

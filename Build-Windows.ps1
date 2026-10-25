@@ -1,6 +1,13 @@
 # Double-click "Build-Windows.bat", or run this file in PowerShell on Windows.
+param(
+    [string]$OutputDirectory = 'release-fluid',
+    [ValidatePattern('^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')]
+    [string]$Version = '1.0.0'
+)
+
 $ErrorActionPreference = 'Stop'
 Set-Location $PSScriptRoot
+$publishDirectory = if ([IO.Path]::IsPathRooted($OutputDirectory)) { $OutputDirectory } else { Join-Path $PSScriptRoot $OutputDirectory }
 
 $localDotnet = Join-Path $PSScriptRoot '..\tools\dotnet\dotnet.exe'
 $dotnetCommand = if (Test-Path -LiteralPath $localDotnet) { $localDotnet } else { 'dotnet' }
@@ -22,12 +29,15 @@ Write-Host '正在构建 DailyPlan（Windows x64 低内存目录版本）...' -F
     --self-contained true `
     '-p:PublishSingleFile=false' `
     '-p:EnableCompressionInSingleFile=false' `
-    '--output' '.\release-fluid'
+    '-p:DebugType=None' `
+    '-p:DebugSymbols=false' `
+    "-p:Version=$Version" `
+    '--output' $publishDirectory
 
 if ($LASTEXITCODE -ne 0) { throw '构建失败，请查看上方 dotnet 错误信息。' }
 
-$exe = Join-Path $PSScriptRoot 'release-fluid\DailyPlan.exe'
+$exe = Join-Path $publishDirectory 'DailyPlan.exe'
 if (-not (Test-Path $exe)) { throw '编译结束，但没有找到 DailyPlan.exe。' }
 Write-Host "`n构建成功！" -ForegroundColor Green
 Write-Host $exe -ForegroundColor Green
-Write-Host '请保留 release-fluid 整个文件夹，双击其中 DailyPlan.exe 启动。'
+Write-Host "请保留 $publishDirectory 整个文件夹，双击其中 DailyPlan.exe 启动。"

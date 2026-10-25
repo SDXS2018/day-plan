@@ -10,6 +10,7 @@ release/
 release-fluid/
 release-lean/
 publish/
+dist/
 *.zip
 
 # 本地数据和敏感配置

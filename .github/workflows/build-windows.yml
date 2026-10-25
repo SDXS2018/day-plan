@@ -1,8 +1,9 @@
-name: Build DailyPlan for Windows
+name: Build and release DailyPlan for Windows
 on:
   workflow_dispatch:
   push:
     branches: [main, master]
+    tags: ['v[0-9]*']
 permissions:
   contents: read
 jobs:
@@ -13,20 +14,45 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Publish Windows portable exe
+      - name: Select package version
+        id: version
         shell: pwsh
-        run: >
-          dotnet publish DailyPlan.csproj
-          --configuration Release
-          --runtime win-x64
-          --self-contained true
-          -p:PublishSingleFile=true
-          -p:EnableCompressionInSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          --output publish
-      - name: Upload app
+        run: |
+          $version = if ($env:GITHUB_REF.StartsWith('refs/tags/v')) { $env:GITHUB_REF_NAME.Substring(1) } else { "1.0.0-dev.$env:GITHUB_RUN_NUMBER" }
+          "value=$version" >> $env:GITHUB_OUTPUT
+      - name: Build and verify complete portable package
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.value }}
+        run: ./Package-Windows.ps1 -Version $env:PACKAGE_VERSION
+      - name: Upload complete ZIP and checksum
         uses: actions/upload-artifact@v4
         with:
           name: DailyPlan-Windows-x64
-          path: publish/DailyPlan.exe
+          path: |
+            dist/*.zip
+            dist/*.sha256
           if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: DailyPlan-Windows-x64
+          path: dist
+      - name: Publish version with complete portable package
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/*.zip dist/*.sha256 --verify-tag --draft --title "DailyPlan $RELEASE_TAG" --notes-file RELEASE-NOTES.md
+          gh release edit "$RELEASE_TAG" --draft=false --latest
