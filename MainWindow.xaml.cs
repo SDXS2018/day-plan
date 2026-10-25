@@ -81,6 +81,11 @@ public partial class MainWindow : Window
         set => _settings.AutoCollapseOnDeactivated = value;
     }
 
+    internal void SetUpdateAvailable(bool available)
+    {
+        UpdateDot.Visibility = CapsuleUpdateDot.Visibility = available ? Visibility.Visible : Visibility.Collapsed;
+    }
+
     public void ShowAndExpand()
     {
         _viewModel.CheckDayRollover();

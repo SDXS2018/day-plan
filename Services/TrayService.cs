@@ -15,6 +15,7 @@ public sealed class TrayService : IDisposable
     private readonly ContextMenu _menu = new();
     private readonly MenuItem _startupItem = new() { Header = "开机自动启动", IsCheckable = true };
     private readonly MenuItem _autoCollapseItem = new() { Header = "点击别处自动收起", IsCheckable = true };
+    private readonly MenuItem _updateItem;
     private readonly uint _taskbarCreated = RegisterWindowMessage("TaskbarCreated");
     private readonly Action _show;
     private readonly Func<bool> _getAutoCollapse;
@@ -27,7 +28,7 @@ public sealed class TrayService : IDisposable
     internal ContextMenu MenuForVerification => _menu;
 
     public TrayService(Window owner, Action show, Action exit, Func<bool> getAutoCollapse,
-        Action<bool> setAutoCollapse, Action showHistory)
+        Action<bool> setAutoCollapse, Action showHistory, Action showUpdates)
     {
         _owner = owner;
         _show = show;
@@ -54,6 +55,9 @@ public sealed class TrayService : IDisposable
         _startupItem.Icon = MenuIcon("M8 1 L8 7 M4 4 C-1 9 3 15 8 15 C13 15 17 9 12 4");
         _autoCollapseItem.Icon = MenuIcon("M2 3 L14 3 L14 13 L2 13 Z M6 7 L8 9 L10 7");
         _menu.Items.Add(history);
+        _updateItem = Item("检查更新", showUpdates);
+        _updateItem.Icon = MenuIcon("M13 6 A6 6 0 1 0 13 11 M13 2 L13 6 L9 6");
+        _menu.Items.Add(_updateItem);
         _menu.Items.Add(new Separator());
         _startupItem.Click += (_, _) =>
         {
@@ -75,6 +79,13 @@ public sealed class TrayService : IDisposable
             if (_owner is MainWindow current) current.SettingsMenuClosed(inside, _wasExpanded);
             if (_openedFromTray && !inside) ShellNotifyIcon(3, ref _data);
         };
+    }
+
+    public void SetUpdateText(string text, bool available)
+    {
+        _updateItem.Header = text;
+        _updateItem.Foreground = new System.Windows.Media.SolidColorBrush(available
+            ? System.Windows.Media.Color.FromRgb(219, 77, 140) : System.Windows.Media.Color.FromRgb(89, 107, 139));
     }
 
     private static System.Windows.Shapes.Path MenuIcon(string geometry) => new()

@@ -9,8 +9,10 @@ obj/
 release/
 release-fluid/
 release-lean/
+release*/
 publish/
 dist/
+dist*/
 *.zip
 
 # 本地数据和敏感配置

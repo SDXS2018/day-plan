@@ -91,10 +91,10 @@
    MouseLeftButtonDown="Capsule_MouseLeftButtonDown" MouseMove="Capsule_MouseMove"
    MouseLeftButtonUp="Capsule_MouseLeftButtonUp" LostMouseCapture="Capsule_LostMouseCapture"
    MouseRightButtonUp="Surface_MouseRightButtonUp" ToolTip="点击展开 · 拖动移动 · 右键设置">
-   <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+   <Grid><StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
     <TextBlock Text="plan" FontSize="14.5" Foreground="#39445D" VerticalAlignment="Center" />
     <TextBlock Text="{Binding TodaySummary}" FontSize="12" Foreground="#74829D" VerticalAlignment="Center" Margin="4,1,0,0" />
-   </StackPanel>
+   </StackPanel><Ellipse x:Name="CapsuleUpdateDot" Width="4.5" Height="4.5" Fill="#EA3D70" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,7,0" Visibility="Collapsed" /></Grid>
   </Border>
 
   <infra:StableContentGrid x:Name="ContentRoot" Canvas.Left="10" Canvas.Top="10" Width="312" Height="200"
@@ -126,7 +126,7 @@
       </Button>
      </Grid>
       <Button Grid.Column="2" Style="{StaticResource IconButton}" Width="26" Height="26" Margin="3,0,0,0" Click="SettingsButton_Click" ToolTip="设置" AutomationProperties.Name="设置">
-       <TextBlock Text="···" FontSize="17" Foreground="#8693A9" Margin="0,-3,0,0" />
+       <Grid><TextBlock Text="···" FontSize="17" Foreground="#8693A9" Margin="0,-3,0,0" /><Ellipse x:Name="UpdateDot" Width="5" Height="5" Fill="#EA3D70" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,-3,0" Visibility="Collapsed" /></Grid>
       </Button>
     </Grid>
     <Grid Grid.Row="1" MinHeight="60" Margin="-5,14,-5,14">

@@ -109,6 +109,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsEmpty => TotalCount == 0;
     public bool CanSave => _canSave;
     public bool IsNotToday => _selectedDate != _knownToday;
+    public bool SaveBeforeUpdate() { Persist(); return _canSave && StatusMessage.Length == 0; }
 
     private void AddTask()
     {

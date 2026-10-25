@@ -4,14 +4,17 @@ C# WPF + 本地 JSON。无需账号、云端服务或管理员权限。
 
 ## 下载给普通用户使用
 
-前往 [Releases 下载页面](https://github.com/SDXS2018/day-plan/releases/latest)，下载 `DailyPlan-Windows-x64-版本号.zip`。
-完整解压，双击其中 `DailyPlan/DailyPlan.exe`。这是 Windows x64 解压即用版，自带 .NET 运行时，没有安装向导；不要只复制 EXE。ZIP 中包含运行库、独立字体、字体许可证和使用说明。GitHub 自动附带的 Source code 是源码，不是运行包。
+前往 [Releases 下载页面](https://github.com/SDXS2018/day-plan/releases/latest)，推荐下载 `DailyPlan-Windows-x64-v1.1.0-Setup.exe` 安装，自带 .NET 运行时并创建快捷方式。
+从旧v1.0.0迁移时先退出旧版，再安装一次新版；原有任务和设置保留。之后可在应用内下载并重启更新。
+
+另提供 `Portable.zip`：完整解压后运行 `current/DailyPlan.exe`，保留根目录的 `Update.exe` 和全部文件。安装包和便携版均包含独立字体、字体许可证和使用说明。GitHub 自动附带的 Source code 是源码；`.nupkg`、`releases.win.json` 是更新器使用的文件。
 
 首次使用会建立自己的空清单。个人任务保存在 `%LOCALAPPDATA%\DailyPlan`；更新程序时在设置中退出旧版、换用新版文件夹即可，数据保留。
 
 ## 已安装版本
 
-- 程序：`%LOCALAPPDATA%\Programs\DailyPlan\DailyPlan.exe`
+- 新安装版：`%LOCALAPPDATA%\Shang.DailyPlan\current\DailyPlan.exe`；推荐通过安装器创建的快捷方式启动
+- 旧手动安装位置：`%LOCALAPPDATA%\Programs\DailyPlan`，新安装器不依赖此目录
 - 桌面和开始菜单：`DailyPlan 每日计划`
 - 数据：`%LOCALAPPDATA%\DailyPlan\tasks.json`
 - 上次保存备份：`tasks.json.bak`
@@ -35,6 +38,7 @@ C# WPF + 本地 JSON。无需账号、云端服务或管理员权限。
 | 今天继续 | 在其他日期右键任务选择“今天继续”，回到今天处理；原有过去日期保留 |
 | 工作回顾 | 设置中点击“工作回顾”，默认全屏月历；点日期查看当天任务，支持翻月、最近7天和最近30天 |
 | 设置 | 面板右上角省略号、胶囊右键、系统托盘右键 |
+| 更新 | 设置中选择“检查更新”；发现新版时胶囊和省略号旁显示小圆点；下载后点“重启并更新” |
 | 开机启动 | 设置菜单里手动开关；默认不启用 |
 | 完全退出 | 菜单选择“退出 plan” |
 
@@ -54,26 +58,32 @@ C# WPF + 本地 JSON。无需账号、云端服务或管理员权限。
 
 双击 `Build-Windows.bat`，生成 `release-fluid` 文件夹。本工作区可使用 `../tools/dotnet` 的 .NET 10 SDK，否则需要自行安装 .NET 10 SDK。
 
+## 自动检查与应用内更新
+
+使用 Velopack 1.2.161，从公开 GitHub Releases 检查稳定版。启动后延迟检查，运行期间每24小时至多一次；手动检查可以立即进行。检查和下载都异步执行，断网/下载失败不影响清单，失败后可重试。只有用户发起下载；下载完成后可立即重启，也可下次启动时应用。立即重启前检查新增/编辑草稿，并重新保存任务和设置。
+
+任务数据继续位于 `%LOCALAPPDATA%\DailyPlan`，与程序目录分开。更新器不会要求用户删除旧数据。旧的v1.0.0没有更新代码，需要手动安装一次新版本才能加入自动更新。
+
 ## 打包与自动发布
 
 在 Windows 的 PowerShell 7 中，进入本项目目录后运行：
 
 ```powershell
-.\Package-Windows.ps1 -Version '1.0.0'
+.\Package-Windows.ps1 -Version '1.1.0' -FetchPrevious
 ```
 
-脚本使用干净的临时目录构建，检查运行库、字体、许可证和使用说明，生成 `dist/DailyPlan-Windows-x64-v1.0.0.zip` 及 SHA-256 校验文件。不会把本机任务、设置、开发工具或测试备份打进去。ZIP 条目统一使用 `/` 路径分隔符。同名文件已经存在时请使用新的版本号或输出目录。
+脚本使用固定版本的vpk工具和干净临时目录，生成 Setup.exe、Portable.zip、完整更新包、更新源JSON和 SHA256SUMS.txt。`-FetchPrevious` 会获取上个支持更新的版本以生成增量包；首次启用更新器时只有完整包。不会把本机任务、设置、开发工具或测试备份打进去；同名文件已存在时请指定新的输出目录。旧版v1.0.0的普通ZIP格式已替换为Velopack管理的便携格式。
 
-推送 `main` / `master` 或在 Actions 手动运行会生成开发版运行包，保存在对应构建的 Artifacts 中。推送 `v1.0.0` 这样的版本标签会在构建成功后自动创建 GitHub Release，附上完整 ZIP 和校验文件，供普通用户直接下载。发布说明来自 `RELEASE-NOTES.md`；发布新版本时应一并更新。
+推送 `main` / `master` 或在 Actions 手动运行会执行更新状态测试并打包开发版，保存在 Artifacts 中。推送版本标签则在检查通过后发布 Release，附上安装器、便携版和更新所需的全部文件。请不要手动删除版本中的更新源JSON或.nupkg包。发布说明来自 `RELEASE-NOTES.md`。
 
 以后发布新版本的示例（先提交并推送代码，确认该版本号尚未使用）：
 
 ```powershell
-git tag -a v1.0.1 -m "DailyPlan v1.0.1"
-git push origin v1.0.1
+git tag -a v1.1.1 -m "DailyPlan v1.1.1"
+git push origin v1.1.1
 ```
 
-本地核对下载包：`Get-FileHash .\DailyPlan-Windows-x64-v1.0.0.zip -Algorithm SHA256`，结果应与 `.sha256` 文件一致。
+本地核对下载包：`Get-FileHash .\DailyPlan-Windows-x64-v1.1.0-Setup.exe -Algorithm SHA256`，结果应与 `SHA256SUMS.txt` 中对应项一致。
 
 源码修复了初次 Windows 编译时的 WPF/WinForms 类型冲突，以及只读进度属性的双向绑定错误。
 
@@ -83,6 +93,10 @@ git push origin v1.0.1
 
 辅助功能实机测试可带 `--ui-test` 参数，暂时显示任务栏按钮；正式快捷方式不使用该参数。实际开机自启动仍需下次登录观察，验收时没有替用户重启电脑。
 
+更新状态与失败恢复检查：`dotnet run --project Tests/DailyPlan.UpdaterVerification.csproj -c Release`。本地隔离版本已通过1.0.9到1.1.0的真实下载、文件替换与自动重启，并验证测试任务/设置保持一致。
+
 ## 参考与许可证
 
 详见 `DESIGN-SOURCES.md`。圆润字体来自 Resource Han Rounded CN Bold，精简为 Plan Rounded，按 SIL Open Font License 分发，许可证随程序保存。保留常用字符，罕见字由 Windows 字体回退。
+
+Velopack 更新框架按 MIT 许可证分发，许可随附于 `Assets/Licenses/Velopack-MIT.txt`。

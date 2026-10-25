@@ -8,11 +8,16 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DailyPlan</AssemblyName>
     <RootNamespace>DailyPlan</RootNamespace>
+    <Version>1.1.0</Version>
+    <StartupObject>DailyPlan.App</StartupObject>
     <ApplicationIcon>Assets\DailyPlan.ico</ApplicationIcon>
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <TieredCompilation>false</TieredCompilation>
   </PropertyGroup>
   <ItemGroup>
+    <ApplicationDefinition Remove="App.xaml" />
+    <Page Include="App.xaml" />
+    <Compile Remove="Tests\**\*.cs" />
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
     <Using Include="System.IO" />
@@ -20,5 +25,9 @@
     <Content Include="Assets\Fonts\PlanRounded.ttf" CopyToOutputDirectory="PreserveNewest" />
     <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
     <None Update="Assets\Fonts\OFL-License.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Assets\Licenses\Velopack-MIT.txt" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Velopack" Version="1.2.161" />
   </ItemGroup>
 </Project>

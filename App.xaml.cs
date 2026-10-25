@@ -1,7 +1,10 @@
 using System.Threading;
 using System.Windows;
+using System.Windows.Threading;
 using DailyPlan.Services;
 using DailyPlan.ViewModels;
+using DailyPlan.Models;
+using Velopack;
 
 namespace DailyPlan;
 
@@ -12,7 +15,34 @@ public partial class App : System.Windows.Application
     private TrayService? _tray;
     private MainWindow? _window;
     private HistoryWindow? _historyWindow;
+    private UpdateWindow? _updateWindow;
+    private AppUpdateService? _updates;
+    private DispatcherTimer? _updateTimer;
+    private MainViewModel? _viewModel;
+    private AppSettings? _currentSettings;
     private readonly SettingsService _settingsService = new();
+
+    [STAThread]
+    public static void Main(string[] args)
+    {
+        // Installer/update hooks must exit before WPF and the single-instance mutex start.
+        VelopackApp.Build().Run();
+        var app = new App();
+        var diagnostic = Array.IndexOf(args, "--verify-history");
+        if (diagnostic >= 0 && diagnostic + 1 < args.Length)
+        {
+            var folder = args[diagnostic + 1];
+            app.DispatcherUnhandledException += (_, error) =>
+            {
+                Directory.CreateDirectory(folder);
+                File.WriteAllText(Path.Combine(folder, "dispatcher-error.txt"), error.Exception.ToString());
+                error.Handled = true;
+                app.ExitApplication();
+            };
+        }
+        app.InitializeComponent();
+        app.Run();
+    }
 
     private void Application_Startup(object sender, StartupEventArgs e)
     {
@@ -27,6 +57,14 @@ public partial class App : System.Windows.Application
 
         try
         {
+            var updateTest = Array.IndexOf(e.Args, "--verify-update");
+            var updateCompleted = Array.IndexOf(e.Args, "--verify-update-completed");
+            var updateTestIndex = updateTest >= 0 ? updateTest : updateCompleted;
+            if (updateTestIndex >= 0 && updateTestIndex + 1 < e.Args.Length)
+            {
+                _ = Infrastructure.UpdaterIntegrationVerification.RunAsync(e.Args[updateTestIndex + 1], updateCompleted >= 0, ExitApplication);
+                return;
+            }
             // This tiny vector widget uses substantially less memory with software composition on this PC.
             // A hardware comparison remains available for diagnostics on other machines.
             if (!e.Args.Contains("--hardware-render"))
@@ -35,6 +73,7 @@ public partial class App : System.Windows.Application
             var fontFolder = new Uri(Path.Combine(AppContext.BaseDirectory, "Assets", "Fonts") + Path.DirectorySeparatorChar);
             Resources["AppFont"] = new System.Windows.Media.FontFamily(fontFolder, "./#Plan Rounded");
             var settings = _settingsService.Load();
+            _currentSettings = settings;
             var verification = Array.IndexOf(e.Args, "--verify-motion");
             var preview = Array.IndexOf(e.Args, "--verify-preview");
             var historyCheck = Array.IndexOf(e.Args, "--verify-history");
@@ -51,6 +90,7 @@ public partial class App : System.Windows.Application
                     new() { Title = "完成上周复习", Date = DateOnly.FromDateTime(DateTime.Today).AddDays(-10), CreatedAt = DateTimeOffset.Now.AddDays(-10), IsCompleted = true, CompletedAt = DateTimeOffset.Now.AddDays(-8) }
                 });
             var viewModel = new MainViewModel(store);
+            _viewModel = viewModel;
             _window = new MainWindow(viewModel, settings);
             // Expose the floating window to accessibility test tools when requested.
             _window.ShowInTaskbar = e.Args.Contains("--ui-test");
@@ -65,7 +105,8 @@ public partial class App : System.Windows.Application
                     try { _settingsService.Save(settings); }
                     catch (Exception ex) { System.Windows.MessageBox.Show(ex.Message, "设置保存失败", MessageBoxButton.OK, MessageBoxImage.Warning); }
                 },
-                showHistory: () => ShowHistory(viewModel, 0));
+                showHistory: () => ShowHistory(viewModel, 0),
+                showUpdates: ShowUpdates);
             _window.SettingsRequested += (_, _) => _tray.ShowMenu();
             _window.HasOpenSettingsMenu = () => _tray?.IsMenuOpen == true;
             _window.SettingsChanged += (_, _) =>
@@ -75,6 +116,21 @@ public partial class App : System.Windows.Application
             };
             MainWindow = _window;
             _window.Show();
+            if (verificationOutput == null)
+            {
+                var backend = new AppUpdateBackend();
+                if (backend.IsInstalled) StartupService.MigrateExistingRegistration();
+                _updates = new AppUpdateService(backend, lastAutomaticAttempt: UpdateCheckStore.Load(), rememberCheck: UpdateCheckStore.Save);
+                _updates.PropertyChanged += (_, _) =>
+                {
+                    _window.SetUpdateAvailable(_updates.HasUpdate);
+                    _tray?.SetUpdateText(_updates.MenuText, _updates.HasUpdate);
+                };
+                _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(1) };
+                _updateTimer.Tick += async (_, _) => { if (_updates != null) await _updates.CheckAsync(automatic: true); };
+                _updateTimer.Start();
+                _ = CheckAfterStartupAsync();
+            }
             if (verificationOutput != null)
                 _ = historyCheck >= 0 ? DailyPlan.Infrastructure.HistoryVerification.RunAsync(_window, viewModel, _tray, days => ShowHistory(viewModel, days), verificationOutput, ExitApplication)
                     : preview >= 0 ? DailyPlan.Infrastructure.MotionVerification.PreviewAsync(_window, verificationOutput, ExitApplication)
@@ -86,6 +142,41 @@ public partial class App : System.Windows.Application
                 MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
         }
+    }
+
+    private async Task CheckAfterStartupAsync()
+    {
+        await Task.Delay(TimeSpan.FromSeconds(6));
+        if (_updates != null) await _updates.CheckAsync(automatic: true);
+    }
+
+    private void ShowUpdates()
+    {
+        if (_updates == null) return;
+        if (_updateWindow != null) { _updateWindow.Activate(); return; }
+        _window?.SetExpanded(false);
+        var window = new UpdateWindow(_updates, PrepareUpdate, ExitApplication);
+        _updateWindow = window;
+        window.Closed += (_, _) => _updateWindow = null;
+        window.Show();
+        window.Activate();
+        _ = _updates.CheckAsync();
+    }
+
+    private bool PrepareUpdate()
+    {
+        if (_viewModel != null && (!string.IsNullOrWhiteSpace(_viewModel.NewTaskText) || _viewModel.Items.Any(task => task.IsEditing)))
+        {
+            MessageBox.Show("请先保存正在新增或编辑的任务，再点击重启更新。", "还有未保存内容", MessageBoxButton.OK, MessageBoxImage.Information);
+            return false;
+        }
+        if (_viewModel != null && !_viewModel.SaveBeforeUpdate())
+        {
+            MessageBox.Show(_viewModel.StatusMessage, "任务尚未保存，暂不更新", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+        try { if (_currentSettings != null) _settingsService.Save(_currentSettings); return true; }
+        catch (Exception ex) { MessageBox.Show(ex.Message, "暂时无法保存设置", MessageBoxButton.OK, MessageBoxImage.Warning); return false; }
     }
 
     private HistoryWindow ShowHistory(MainViewModel source, int days)
@@ -114,6 +205,10 @@ public partial class App : System.Windows.Application
 
     private void ExitApplication()
     {
+        _updateTimer?.Stop();
+        _updates?.Dispose();
+        _updates = null;
+        _updateWindow?.Close();
         _historyWindow?.Close();
         _window?.AllowExit();
         _tray?.Dispose();
@@ -124,6 +219,8 @@ public partial class App : System.Windows.Application
 
     private void Application_Exit(object sender, ExitEventArgs e)
     {
+        _updateTimer?.Stop();
+        _updates?.Dispose();
         _tray?.Dispose();
         if (_ownsMutex) _singleInstance?.ReleaseMutex();
         _singleInstance?.Dispose();

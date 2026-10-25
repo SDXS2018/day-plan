@@ -44,8 +44,8 @@ internal static class HistoryVerification
             Check(!mini.IsExpanded, "Closing settings outside the panel collapses normally");
             mini.ShowAndExpand(); await Task.Delay(350);
             tray.ShowMenu(); await Task.Delay(200);
-            Check(tray.MenuForVerification.Items.OfType<MenuItem>().Count() == 4,
-                "Settings has four focused actions without redundant date or expand entries");
+            Check(tray.MenuForVerification.Items.OfType<MenuItem>().Count() == 5,
+                "Settings includes work review and updates without redundant date or expand entries");
             Capture(tray.MenuForVerification, Path.Combine(output, "settings.png"));
             tray.MenuForVerification.IsOpen = false;
             var history = show(0); await Task.Delay(550);
@@ -75,11 +75,53 @@ internal static class HistoryVerification
             Check(mini.Topmost && !mini.IsExpanded && history.DataContext == null,
                 "Closing review restores the capsule and releases its view data");
             await VerifyAdaptiveEmphasis(mini, source, output, Check);
+            await VerifyUpdateWindow(mini, output, Check);
             File.WriteAllLines(Path.Combine(output, "checks.txt"), checks);
             File.WriteAllText(Path.Combine(output, "complete.txt"), "PASS");
         }
         catch (Exception error) { File.WriteAllText(Path.Combine(output, "error.txt"), error.ToString()); }
         finally { mini.IgnoreDeactivationForVerification = false; exit(); }
+    }
+
+    private sealed class UpdateUiBackend : IAppUpdateBackend
+    {
+        public bool IsInstalled => true;
+        public string CurrentVersion => "1.1.0";
+        public bool Applied { get; private set; }
+        public Task<UpdateOffer?> CheckAsync() => Task.FromResult<UpdateOffer?>(new UpdateOffer("1.2.0"));
+        public async Task DownloadAsync(Action<int> progress, CancellationToken cancellation)
+        {
+            progress(15); await Task.Delay(250, cancellation); progress(60);
+            await Task.Delay(350, cancellation); progress(100);
+        }
+        public void PrepareRestart() => Applied = true;
+    }
+
+    private static async Task VerifyUpdateWindow(MainWindow mini, string output, Action<bool, string> check)
+    {
+        var backend = new UpdateUiBackend();
+        using var updates = new AppUpdateService(backend);
+        var exitRequested = false;
+        var window = new UpdateWindow(updates, () => true, () => exitRequested = true);
+        window.Show(); await updates.CheckAsync(); await Task.Delay(150);
+        check(window.UpdateActionButton.Content?.ToString() == "下载更新" && updates.HasUpdate,
+            "Update window shows the available release and download action");
+        Capture(window, Path.Combine(output, "update-available.png"));
+        mini.SetUpdateAvailable(true); mini.ShowAndExpand(); await Task.Delay(350);
+        check(mini.UpdateDot.Visibility == Visibility.Visible && mini.CapsuleUpdateDot.Visibility == Visibility.Visible,
+            "Both collapsed and expanded controls have a new-version indicator");
+        Capture(mini, Path.Combine(output, "update-indicator.png"));
+        window.Activate();
+        window.UpdateActionButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        await Task.Delay(120);
+        check(updates.IsDownloading && !window.UpdateActionButton.IsEnabled,
+            "Download progress disables repeated clicks while the main app remains open");
+        Capture(window, Path.Combine(output, "update-downloading.png"));
+        await Task.Delay(600);
+        Capture(window, Path.Combine(output, "update-ready.png"));
+        window.UpdateActionButton.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+        check(backend.Applied && exitRequested, "Restart action schedules the updater then requests normal application exit");
+        window.Close(); mini.SetUpdateAvailable(false); mini.SetExpanded(false);
     }
 
     private static async Task VerifyAdaptiveEmphasis(MainWindow mini, MainViewModel source, string output, Action<bool, string> check)

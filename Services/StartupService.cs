@@ -27,4 +27,10 @@ public static class StartupService
         if (enabled) key.SetValue(EntryName, $"\"{ExePath}\"", RegistryValueKind.String);
         else key.DeleteValue(EntryName, throwOnMissingValue: false);
     }
+
+    public static void MigrateExistingRegistration()
+    {
+        using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: false);
+        if (key?.GetValue(EntryName) is string value && !string.IsNullOrWhiteSpace(value)) SetEnabled(true);
+    }
 }
