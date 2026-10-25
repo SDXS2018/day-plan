@@ -30,6 +30,9 @@ public partial class MainWindow : Window
     private bool _layoutDirty = true;
     private Point _dragStartScreen;
     private double _dragStartLeft, _dragStartTop;
+    private bool _panelPointerDown, _panelDragging;
+    private Point _panelDragStartScreen;
+    private double _panelDragStartLeft, _panelDragStartTop;
 
     public event EventHandler? SettingsRequested;
     public event EventHandler? SettingsChanged;
@@ -317,6 +320,59 @@ public partial class MainWindow : Window
         _pointerDown = _dragging = false;
         _press.Target = 0;
         StartRendering();
+    }
+
+    private void PanelHeader_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        // Let date navigation and settings keep their normal button behavior.
+        for (var element = e.OriginalSource as DependencyObject; element != null && element != PanelDragHandle;
+             element = VisualTreeHelper.GetParent(element))
+            if (element is System.Windows.Controls.Primitives.ButtonBase) return;
+        if (!IsExpanded) return;
+        _panelDragStartScreen = PointToScreen(e.GetPosition(this));
+        _panelDragStartLeft = Left;
+        _panelDragStartTop = Top;
+        _panelDragging = false;
+        _panelPointerDown = PanelDragHandle.CaptureMouse();
+        e.Handled = true;
+    }
+
+    private void PanelHeader_MouseMove(object sender, MouseEventArgs e)
+    {
+        if (!_panelPointerDown || e.LeftButton != MouseButtonState.Pressed) return;
+        var point = PointToScreen(e.GetPosition(this));
+        var dpi = VisualTreeHelper.GetDpi(this);
+        var dx = (point.X - _panelDragStartScreen.X) / dpi.DpiScaleX;
+        var dy = (point.Y - _panelDragStartScreen.Y) / dpi.DpiScaleY;
+        if (!_panelDragging && Math.Abs(dx) < SystemParameters.MinimumHorizontalDragDistance &&
+            Math.Abs(dy) < SystemParameters.MinimumVerticalDragDistance) return;
+        _panelDragging = true;
+        var area = SystemParameters.WorkArea;
+        var left = Math.Clamp(_panelDragStartLeft + dx, area.Left, Math.Max(area.Left, area.Right - Width));
+        var top = Math.Clamp(_panelDragStartTop + dy, area.Top, Math.Max(area.Top, area.Bottom - Height));
+        // Move the compact anchor by the actual displacement so collapsing stays at the new position.
+        _compactLeft += left - Left;
+        _compactTop += top - Top;
+        Left = left;
+        Top = top;
+        e.Handled = true;
+    }
+
+    private void PanelHeader_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_panelPointerDown) return;
+        FinishPanelDrag();
+        PanelDragHandle.ReleaseMouseCapture();
+        e.Handled = true;
+    }
+
+    private void PanelHeader_LostMouseCapture(object sender, MouseEventArgs e) => FinishPanelDrag();
+
+    private void FinishPanelDrag()
+    {
+        var moved = _panelPointerDown && _panelDragging;
+        _panelPointerDown = _panelDragging = false;
+        if (moved) SavePosition();
     }
 
     private void Surface_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)

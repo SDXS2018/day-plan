@@ -101,7 +101,9 @@
    Visibility="Collapsed" Opacity="0" IsHitTestVisible="False">
    <Grid Margin="18,16,18,16">
     <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="*" /><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
-    <Grid>
+    <Grid x:Name="PanelDragHandle" Background="Transparent"
+     MouseLeftButtonDown="PanelHeader_MouseLeftButtonDown" MouseMove="PanelHeader_MouseMove"
+     MouseLeftButtonUp="PanelHeader_MouseLeftButtonUp" LostMouseCapture="PanelHeader_LostMouseCapture">
      <Grid.ColumnDefinitions>
       <ColumnDefinition Width="29" /><ColumnDefinition Width="*" /><ColumnDefinition Width="29" />
      </Grid.ColumnDefinitions>
