@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>DailyPlan</AssemblyName>
     <RootNamespace>DailyPlan</RootNamespace>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <StartupObject>DailyPlan.App</StartupObject>
     <ApplicationIcon>Assets\DailyPlan.ico</ApplicationIcon>
     <ServerGarbageCollection>false</ServerGarbageCollection>

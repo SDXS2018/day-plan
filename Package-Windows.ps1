@@ -1,7 +1,7 @@
 # Create the installer, portable app, update feed and full/delta packages together.
 param(
     [ValidatePattern('^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '1.1.1',
+    [string]$Version = '1.1.2',
     [string]$OutputDirectory = 'dist',
     [string]$PreviousReleaseDirectory = '',
     [switch]$FetchPrevious
@@ -42,8 +42,10 @@ try {
         else { Write-Host '首次发布更新器版本：没有可用于增量生成的旧更新包。' }
     }
 
+    # vpk generates an execution-stub filename from this title. Keep it ASCII because
+    # its Windows zstd tool cannot delta-patch filenames containing Chinese characters.
     & $dotnet tool run vpk -- pack --packId 'Shang.DailyPlan' --packVersion $Version --packDir $payload `
-        --mainExe 'DailyPlan.exe' --packTitle 'DailyPlan 每日计划' --packAuthors 'Shang' `
+        --mainExe 'DailyPlan.exe' --packTitle 'DailyPlan' --packAuthors 'Shang' `
         --channel 'win' --runtime 'win-x64' --icon (Join-Path $PSScriptRoot 'Assets\DailyPlan.ico') `
         --releaseNotes (Join-Path $PSScriptRoot 'RELEASE-NOTES.md') --shortcuts 'Desktop,StartMenuRoot' --outputDir $releases
     if ($LASTEXITCODE -ne 0) { throw 'Velopack 打包失败。' }

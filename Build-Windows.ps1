@@ -2,7 +2,7 @@
 param(
     [string]$OutputDirectory = 'release-fluid',
     [ValidatePattern('^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$')]
-    [string]$Version = '1.1.1'
+    [string]$Version = '1.1.2'
 )
 
 $ErrorActionPreference = 'Stop'
